@@ -14,28 +14,36 @@ class HyperchaosBoxGenerator:
         self.box_size = box_size
         self.shared_secret = shared_secret
         
-    def generate(self):
-        """Generate an S-box using the hyperchaotic system with shared secret as seed."""
-        # Convert shared secret to bytes
-        secret_bytes = self.shared_secret.to_bytes(
+        # Convert shared secret to bytes at initialization to avoid repetition
+        self.secret_bytes = self.shared_secret.to_bytes(
             (self.shared_secret.bit_length() + 7) // 8, 
             byteorder='big'
         )
         
+    def _generate_initial_state(self):
+        """Generate initial state for chaotic system from shared secret."""
         # Generate hash of the secret to create initial conditions
-        hash_obj = hashlib.sha256(secret_bytes)
+        hash_obj = hashlib.sha256(self.secret_bytes)
         hash_digest = hash_obj.digest()
         
-        # Convert first 20 bytes of hash to 5 float values for initial state
+        # Convert hash to five float values for initial state
         initial_state = []
         for i in range(0, min(20, len(hash_digest)), 4):
             value = int.from_bytes(hash_digest[i:i+4], byteorder='big')
+            # Normalize to [-1, 1] range for the chaotic system
             normalized = (value / (2**32 - 1)) * 2 - 1
             initial_state.append(normalized)
             
         # Ensure we have 5 values
         while len(initial_state) < 5:
             initial_state.append(0.1)
+            
+        return initial_state
+        
+    def generate(self):
+        """Generate an S-box using the hyperchaotic system with shared secret as seed."""
+        # Get initial state from shared secret
+        initial_state = self._generate_initial_state()
             
         # Generate a chaotic sequence
         trajectory = ChaoticSystem.generate_sequence(
@@ -52,22 +60,32 @@ class HyperchaosBoxGenerator:
         y_values = trajectory[1, :]
         
         for i in range(self.box_size - 1, 0, -1):
-            j_float = abs(x_values[i] + y_values[i])
-            j_int = int(j_float * (i + 1)) % (i + 1)
+            # Combine chaotic values to determine swap index
+            combined_value = abs(x_values[i] + y_values[i])
+            # Scale to range [0, i]
+            swap_index = int(combined_value * (i + 1)) % (i + 1)
             
             # Swap elements
-            sbox[i], sbox[j_int] = sbox[j_int], sbox[i]
+            sbox[i], sbox[swap_index] = sbox[swap_index], sbox[i]
             
         return sbox
         
     def generate_with_avalanche(self):
         """Generate an S-box with good avalanche characteristics."""
         # Generate a base S-box
-        base_sbox = self.generate()
+        sbox = self.generate()
         
-        # Use SecureRandom to introduce additional entropy
-        for i in range(len(base_sbox) - 1, 0, -1):
-            j = SecureRandom.chaotic_randint(0, i, [0.1, 0.2, 0.3, 0.4, 0.5])
-            base_sbox[i], base_sbox[j] = base_sbox[j], base_sbox[i]
+        # Get initial state from shared secret
+        initial_state = self._generate_initial_state()
         
-        return base_sbox
+        # Additional chaotic mixing to improve avalanche effect
+        for i in range(self.box_size - 1, 0, -1):
+            # Use SecureRandom with our initial state for deterministic but chaotic behavior
+            swap_index = SecureRandom.chaotic_randint(0, i, initial_state=initial_state)
+            sbox[i], sbox[swap_index] = sbox[swap_index], sbox[i]
+            
+            # Modify initial state slightly for next iteration
+            initial_state[0] += 0.01
+            initial_state[0] %= 1.0
+        
+        return sbox
