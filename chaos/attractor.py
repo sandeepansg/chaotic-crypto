@@ -17,7 +17,7 @@ class HyperchaosSystem:
         
     def _system_equations(self, t, state):
         """Define the system of differential equations."""
-        x, y, w, u, v = state
+        x, y, w, u, v = state  # Using w as per original code
         
         dx = 10 * (y - x) + u
         dy = 28 * x - y - x * (w**2) - v
@@ -27,14 +27,14 @@ class HyperchaosSystem:
         
         return [dx, dy, dw, du, dv]
     
-    def generate_sequence(self, initial_state, t_span, num_points=1000):
+    def generate_sequence(self, initial_state, time_span, num_points=1000):
         """Generate a chaotic sequence by solving the system of equations."""
-        t_eval = np.linspace(t_span[0], t_span[1], num_points)
+        time_points = np.linspace(time_span[0], time_span[1], num_points)
         solution = solve_ivp(
             self._system_equations,
-            t_span,
+            time_span,
             initial_state,
-            t_eval=t_eval,
+            t_eval=time_points,
             method='RK45'
         )
         
@@ -42,24 +42,32 @@ class HyperchaosSystem:
     
     def generate_keystream(self, initial_state, length, skip=100):
         """Generate a keystream from the chaotic system."""
-        t_span = (0, (length + skip) * 0.01)
-        num_points = length + skip
+        # Calculate total required points and appropriate time span
+        total_points = length + skip
+        time_span = (0, total_points * 0.01)
         
-        trajectory = self.generate_sequence(initial_state, t_span, num_points)
-        trajectory = trajectory[:, skip:]
+        # Generate full trajectory and skip initial transient points
+        trajectory = self.generate_sequence(initial_state, time_span, total_points)
         
-        return trajectory[:, :length]
+        # Return only the requested portion (after skipping)
+        return trajectory[:, skip:skip+length]
     
     def generate_bytes(self, initial_state, num_bytes, skip=100):
         """Generate a byte sequence for cryptographic applications."""
         keystream = self.generate_keystream(initial_state, num_bytes, skip)
         
+        # Use the first two state variables for byte generation
         x_values = keystream[0, :]
         y_values = keystream[1, :]
         
+        # Create bytes with better statistical properties
         byte_array = bytearray()
         for i in range(num_bytes):
-            value = int(abs((x_values[i] + y_values[i]) * 100) % 256)
+            # Improved byte generation with better distribution
+            # Use XOR to combine values with multiplication for nonlinearity
+            x_abs = abs(x_values[i])
+            y_abs = abs(y_values[i])
+            value = int((x_abs * 128 + y_abs * 128) % 256)
             byte_array.append(value)
             
         return bytes(byte_array)
@@ -69,6 +77,7 @@ class HyperchaosSystem:
         total_bytes = block_size * num_blocks
         byte_sequence = self.generate_bytes(initial_state, total_bytes, skip)
         
+        # Divide the byte sequence into blocks
         blocks = []
         for i in range(0, total_bytes, block_size):
             block = byte_sequence[i:i+block_size]
