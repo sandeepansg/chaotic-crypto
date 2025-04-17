@@ -1,10 +1,9 @@
 """
 Main entry point for the Chebyshev cryptosystem application with hyperchaotic system.
-Uses the simplified APIs from chaos.py and crypto.py.
+Uses the simplified APIs from chaos.chaotic and crypto.cryptic modules.
 """
 import time
 from crypto.cryptic import CryptoSystem
-from chaos.chaotic import ChaoticSystem
 from ui.interface import UserInterface
 
 
@@ -16,25 +15,21 @@ def run_demo():
         # Display header
         ui.show_header()
 
-        # Get private key length
+        # Get parameters from user
         private_bits = ui.get_private_key_length()
-
-        # Show calculated security parameters
-        params = CryptoSystem.get_security_params(private_bits)
-        ui.show_param_info(params)
-
-        # Get cipher parameters
         cipher_rounds, cipher_block_size = ui.get_feistel_params()
-        cipher_params = CryptoSystem.validate_feistel_params(cipher_rounds, cipher_block_size)
-
-        # Get S-box size
         sbox_size = ui.get_sbox_params()
-        sbox_params = CryptoSystem.validate_sbox_params(sbox_size)
-
-        # Get entropy
         entropy = ui.get_entropy()
         
-        # Initialize DH system with entropy
+        # Validate parameters
+        params = CryptoSystem.get_security_params(private_bits)
+        cipher_params = CryptoSystem.validate_feistel_params(cipher_rounds, cipher_block_size)
+        sbox_params = CryptoSystem.validate_sbox_params(sbox_size)
+        
+        # Display validated parameters
+        ui.show_param_info(params)
+        
+        # Initialize DH system
         start_time = time.time()
         dh = CryptoSystem.create_dh_exchange(private_bits)
         init_time = time.time() - start_time
@@ -43,47 +38,54 @@ def run_demo():
         system_info = dh.get_system_info()
         ui.show_system_info(system_info, init_time)
 
-        # Perform key exchange using entropy
+        # Perform key exchange
         start_time = time.time()
         exchange = CryptoSystem.simulate_key_exchange(dh, entropy, entropy + "_bob")
         exchange_time = time.time() - start_time
         ui.show_exchange_results(exchange, exchange_time)
 
-        # Generate S-box from shared secret using hyperchaotic system
+        # Generate S-box from shared secret
         start_time = time.time()
         sbox_gen = CryptoSystem.create_sbox_generator(exchange["alice_shared"], sbox_params["box_size"])
-        sbox = sbox_gen.generate()
+        sbox = sbox_gen.generate_with_avalanche()  # Use avalanche method for better distribution
         sbox_time = time.time() - start_time
         ui.show_sbox_generation(sbox, sbox_time)
 
-        # Demo hyperchaotic block cipher encryption
-        start_time = time.time()
-        cipher = CryptoSystem.create_block_cipher(sbox, rounds=cipher_params["rounds"], block_size=cipher_params["block_size"])
-        
-        # Show cipher parameters
+        # Create hyperchaotic block cipher
+        cipher = CryptoSystem.create_block_cipher(
+            sbox, 
+            rounds=cipher_params["rounds"], 
+            block_size=cipher_params["block_size"]
+        )
         cipher_info = cipher.get_cipher_info()
         ui.show_feistel_params(cipher_info)
 
-        # Get sample message
+        # Encrypt and decrypt sample message
+        start_time = time.time()
         message = ui.get_sample_message()
-
-        # Encrypt and decrypt
-        ciphertext = CryptoSystem.encrypt_data(cipher, message.encode())
-        decrypted = CryptoSystem.decrypt_data(cipher, ciphertext)
+        
+        # Generate key from shared secret
+        key = exchange["alice_shared"].to_bytes(
+            (exchange["alice_shared"].bit_length() + 7) // 8,
+            byteorder='big'
+        )
+        
+        # Perform encryption/decryption
+        ciphertext = CryptoSystem.encrypt_data(cipher, message.encode(), key)
+        decrypted = CryptoSystem.decrypt_data(cipher, ciphertext, key)
         
         encryption_time = time.time() - start_time
         ui.show_encryption_results(message, ciphertext, decrypted, encryption_time)
         
-        # NIST statistical tests
+        # Run NIST statistical tests if requested
         nist_options = ui.get_nist_test_options()
         if nist_options:
-            # Only import when needed
+            # Import NIST analyzer only when needed
             from utils.nist_anals import NISTAnalyzer
 
-            # Run NIST tests on the cipher output
             start_time = time.time()
             
-            # Generate test sequence using shared secret as seed
+            # Generate test sequence using cipher
             test_data = cipher.generate_test_sequence(nist_options["sequence_size"], entropy)
             
             # Analyze the sequence
@@ -94,7 +96,7 @@ def run_demo():
             ui.show_nist_test_results(results, analysis_time)
 
     except KeyboardInterrupt:
-        print("\nDemo aborted by user.")
+        ui.show_message("info", "\nDemo aborted by user.")
     except Exception as e:
         ui.show_error(str(e))
 
