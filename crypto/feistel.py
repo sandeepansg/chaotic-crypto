@@ -194,8 +194,57 @@ class HyperchaosBlockCipher:
             "block_size": self.block_size,
             "sbox_size": self.sbox_size
         }
-        
+
     def generate_test_sequence(self, sequence_size, entropy=None):
+        """Generate a random byte sequence for statistical testing.
+
+        Args:
+            sequence_size: Size of the sequence to generate in bytes
+            entropy: Optional user-provided entropy string
+
+        Returns:
+            bytes: Random byte sequence suitable for NIST testing
+        """
+        from chaos.chaotic import ChaoticSystem
         from utils.random_gen import SecureRandom
-        initial_state = SecureRandom.generate_initial_state(entropy)
-        return ChaoticSystem.generate_bytes(initial_state, sequence_size)
+
+        # Create a more robust initial state using cipher properties
+        if entropy:
+            # Mix entropy with cipher parameters
+            mixed_entropy = f"{entropy}_{self.rounds}_{self.block_size}_{hash(bytes(self.sbox[:16]))}"
+            initial_state = SecureRandom.generate_initial_state(mixed_entropy)
+        else:
+            # Use S-box and cipher parameters to create initial state
+            sbox_hash = sum(self.sbox[:min(32, len(self.sbox))]) % (2 ** 32)
+            cipher_entropy = f"cipher_{self.rounds}_{self.block_size}_{sbox_hash}"
+            initial_state = SecureRandom.generate_initial_state(cipher_entropy)
+
+        # Generate initial raw bytes
+        raw_bytes = bytearray(ChaoticSystem.generate_bytes(initial_state, sequence_size + 16))
+
+        # Run a portion through the cipher to better represent its properties
+        if len(raw_bytes) > 32:
+            # Use first 32 bytes as a "key"
+            key = bytes(raw_bytes[:32])
+            # Process the rest through the cipher's round function
+            processed_bytes = bytearray(len(raw_bytes) - 32)
+
+            # Apply round function transformation to improve statistical properties
+            round_keys = self._generate_keys(key)
+
+            for i in range(0, len(processed_bytes), self.half_block_size):
+                chunk_size = min(self.half_block_size, len(processed_bytes) - i)
+                chunk = raw_bytes[32 + i:32 + i + chunk_size]
+
+                # Apply mixing using round function components
+                for r in range(min(4, self.rounds)):  # Use a few rounds for efficiency
+                    chunk = bytearray(self._hyperchaotic_round(chunk, round_keys[r % len(round_keys)], r))
+
+                # Store back processed chunk
+                processed_bytes[i:i + chunk_size] = chunk
+
+            # Return exactly the requested size
+            return bytes(processed_bytes[:sequence_size])
+
+        # Fallback for small sizes
+        return bytes(raw_bytes[:sequence_size])

@@ -102,3 +102,90 @@ class NISTHandler:
         # Invalid response, return default
         print(f"Invalid input. Using default ({default})")
         return default
+
+    @staticmethod
+    def get_nist_test_options(ciphertext_available=False):
+        """Get NIST statistical test options."""
+        print("\nNIST Statistical Test Configuration")
+        print("-" * 30)
+        print("NIST tests evaluate the randomness quality of the encryption system.")
+
+        # Ask if user wants to run NIST tests
+        run_tests = NISTHandler.confirm_action("Would you like to run NIST statistical tests?", default=False)
+
+        if not run_tests:
+            return None
+
+        # Default options
+        options = {
+            "run_tests": True,
+            "test_ciphertext": False,
+            "sequence_size": 10000
+        }
+
+        # If ciphertext is available, ask if they want to test it
+        if ciphertext_available:
+            test_ciphertext = NISTHandler.confirm_action(
+                "Would you like to test the generated ciphertext instead of a fresh random sequence?",
+                default=True
+            )
+            options["test_ciphertext"] = test_ciphertext
+
+            if test_ciphertext:
+                print("The ciphertext will be used for NIST testing.")
+                # If they want to test ciphertext, we ask if they want to use all or part
+                use_sample = NISTHandler.confirm_action(
+                    "Would you like to use only a sample of the ciphertext?",
+                    default=True
+                )
+
+                if use_sample:
+                    default_size = 10000
+                    print(f"Enter sample size to test [default={default_size}]")
+                    size_input = input(f"Enter sample size [1000-100000, default={default_size}]: ")
+
+                    sample_size = default_size
+                    if size_input.strip():
+                        try:
+                            input_val = int(size_input)
+                            if input_val < 1000:
+                                print(f"Warning: Value too small. Using minimum of 1000")
+                                sample_size = 1000
+                            elif input_val > 100000:
+                                print(f"Warning: Value too large. Using maximum of 100000")
+                                sample_size = 100000
+                            else:
+                                sample_size = input_val
+                        except ValueError:
+                            print(f"Invalid input. Using default of {default_size}")
+
+                    options["sample_size"] = sample_size
+                else:
+                    options["sample_size"] = None  # Use all ciphertext
+
+                return options
+
+        # For standard random sequence generation test
+        default_size = 10000
+        print(f"Enter sequence size for testing [default={default_size}]")
+        print("Note: Larger sizes provide more accurate results but take longer to process")
+
+        size_input = input(f"Enter sequence size [1000-100000, default={default_size}]: ")
+
+        sequence_size = default_size
+        if size_input.strip():
+            try:
+                input_val = int(size_input)
+                if input_val < 1000:
+                    print(f"Warning: Value too small. Using minimum of 1000")
+                    sequence_size = 1000
+                elif input_val > 100000:
+                    print(f"Warning: Value too large. Using maximum of 100000")
+                    sequence_size = 100000
+                else:
+                    sequence_size = input_val
+            except ValueError:
+                print(f"Invalid input. Using default of {default_size}")
+
+        options["sequence_size"] = sequence_size
+        return options

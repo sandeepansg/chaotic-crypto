@@ -75,6 +75,7 @@ class PatternTests:
             "pi": pi
         }
 
+    # utils/nist_pattern_tests.py - Modified longest_run_ones_test
     @staticmethod
     def longest_run_ones_test(bits: List[int], significance_level: float = 0.01) -> Dict[str, Any]:
         """
@@ -99,21 +100,23 @@ class PatternTests:
             }
         elif n < 6272:
             M = 8  # Block size
-            K = 3  # Number of degrees of freedom (categories-1)
-            # Expected probabilities for each category
+            K = 3  # Number of degrees of freedom
+            # Expected probabilities for each category - NIST values
             pi = [0.2148, 0.3672, 0.2305, 0.1875]
-            # Category boundaries
-            v_categories = [0, 1, 2, 3]  # <= 1, 2, 3, >= 4
+            # Category boundaries for longest runs in block of size M=8
+            categories = [1, 2, 3, 4]  # ≤1, =2, =3, ≥4
         elif n < 750000:
             M = 128
             K = 5
             pi = [0.1174, 0.2430, 0.2493, 0.1752, 0.1027, 0.1124]
-            v_categories = [0, 1, 2, 3, 4, 5]  # <= 1, 2-3, 4, 5, 6-7, >= 8
+            # Corrected categories for block size M=128
+            categories = [1, 2, 3, 4, 6, 7]  # ≤1, =2, =3, =4, 5-6, ≥7
         else:
             M = 10000
             K = 6
             pi = [0.0882, 0.2092, 0.2483, 0.1933, 0.1208, 0.0675, 0.0727]
-            v_categories = [0, 1, 2, 3, 4, 5, 6]  # <= 1, 2-3, 4-6, 7-10, 11-15, 16-22, >= 23
+            # Categories for block size M=10000
+            categories = [1, 3, 6, 10, 15, 22, 23]  # ≤1, 2-3, 4-6, 7-10, 11-15, 16-22, ≥23
 
         # Number of blocks
         N = n // M
@@ -135,47 +138,17 @@ class PatternTests:
                 else:
                     current_run = 0
 
-            # Categorize the longest run based on length and sequence size
-            if n < 6272:  # For smaller sequences
-                if longest <= 1:
-                    v[0] += 1
-                elif longest == 2:
-                    v[1] += 1
-                elif longest == 3:
-                    v[2] += 1
-                else:  # longest >= 4
-                    v[3] += 1
-            elif n < 750000:  # For medium sequences
-                if longest <= 1:
-                    v[0] += 1
-                elif longest in (2, 3):
-                    v[1] += 1
-                elif longest == 4:
-                    v[2] += 1
-                elif longest == 5:
-                    v[3] += 1
-                elif longest in (6, 7):
-                    v[4] += 1
-                else:  # longest >= 8
-                    v[5] += 1
-            else:  # For long sequences - corrected categories
-                if longest <= 1:
-                    v[0] += 1
-                elif longest in (2, 3):
-                    v[1] += 1
-                elif longest in (4, 5, 6):
-                    v[2] += 1
-                elif 7 <= longest <= 10:
-                    v[3] += 1
-                elif 11 <= longest <= 15:
-                    v[4] += 1
-                elif 16 <= longest <= 22:
-                    v[5] += 1
-                else:  # longest >= 23
-                    v[6] += 1
+            # Categorize the longest run based on the categories defined
+            for j, cat in enumerate(categories):
+                if longest <= cat:
+                    v[j] += 1
+                    break
+                # If we reach the last category and haven't broken, it belongs in the last category
+                if j == len(categories) - 1:
+                    v[j] += 1
 
         # Calculate chi-squared
-        chi_squared = sum((v[i] - N * pi[i])**2 / (N * pi[i]) for i in range(len(pi)))
+        chi_squared = sum((v[i] - N * pi[i]) ** 2 / (N * pi[i]) for i in range(len(pi)))
 
         # Calculate P-value with correct degrees of freedom
         p_value = spc.gammaincc(K / 2, chi_squared / 2)

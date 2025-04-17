@@ -76,21 +76,21 @@ def run_demo():
         
         encryption_time = time.time() - start_time
         ui.show_encryption_results(message, ciphertext, decrypted, encryption_time)
-        
+
         # Run NIST statistical tests if requested
         nist_options = ui.get_nist_test_options()
         if nist_options:
             # Import NIST analyzer only when needed
-            from utils.nist_anals import NISTAnalyzer
+            from utils.nist_analyzer import NISTAnalyzer
 
             start_time = time.time()
-            
+
             # Generate test sequence using cipher
             test_data = cipher.generate_test_sequence(nist_options["sequence_size"], entropy)
-            
+
             # Analyze the sequence
             results = NISTAnalyzer.analyze_sequence(test_data)
-            
+
             # Display results
             analysis_time = time.time() - start_time
             ui.show_nist_test_results(results, analysis_time)

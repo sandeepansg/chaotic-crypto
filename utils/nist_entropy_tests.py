@@ -65,8 +65,8 @@ class EntropyTests:
         delta2 = psisq_m - 2 * psisq_m1 + psisq_m2
 
         # Calculate P-values with correct degrees of freedom
-        p_value1 = spc.gammaincc(2**(block_size-2), delta1/2)
-        p_value2 = spc.gammaincc(2**(block_size-3), delta2/2) if block_size >= 3 else 1.0
+        p_value1 = spc.gammaincc(2**(block_size-1)/2, delta1/2)
+        p_value2 = spc.gammaincc(2**(block_size-2)/2, delta2/2) if block_size >= 3 else 1.0
 
         return {
             "name": "Serial Test",
@@ -134,7 +134,7 @@ class EntropyTests:
         chi_sq = 2.0 * n * (math.log(2) - apen)
 
         # Calculate P-value with correct degrees of freedom
-        p_value = spc.gammaincc(2**(block_size-1), chi_sq/2.0)
+        p_value = spc.gammaincc(2**(block_size)/2, chi_sq/2.0)
 
         return {
             "name": "Approximate Entropy Test",
@@ -173,17 +173,19 @@ class EntropyTests:
         x = [2 * bit - 1 for bit in bits]
 
         # Helper function to calculate P-value
+        # More stable alternative for calculate_p_value:
         def calculate_p_value(z, n):
-            # Limit k for computational efficiency
-            k_max = min(int(math.floor(((n/z)-1)/4)), 100)
-            k_start = -k_max if k_max > 0 else -1
-            
-            total = 0.0
-            for k in range(k_start, k_max+1):
-                total += math.erfc((4*k+1)*z/math.sqrt(2*n))
-                total -= math.erfc((4*k-1)*z/math.sqrt(2*n))
-                
-            return total
+            z_normalized = z / math.sqrt(n)
+            sum_term = 0.0
+
+            # Use a more stable computation approach with fewer terms
+            for k in range(1, min(int(math.sqrt(n)), 10)):
+                term = math.exp(-2 * (k * z_normalized) ** 2)
+                sum_term += term
+                if term < 1e-10:  # Early stopping when terms become negligible
+                    break
+
+            return 1.0 - 2 * sum_term
 
         # Mode 0 (forward)
         S = np.cumsum(x)

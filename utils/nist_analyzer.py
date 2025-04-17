@@ -72,3 +72,46 @@ class NISTAnalyzer:
             "sequence_size": len(sequence),
             "test_results": results
         }
+
+    @staticmethod
+    def analyze_ciphertext(ciphertext, sample_size=None):
+        """
+        Analyze ciphertext data using NIST tests.
+
+        Args:
+            ciphertext: Encrypted data bytes
+            sample_size: Number of bytes to use for testing (None = use all)
+
+        Returns:
+            dict: Analysis results
+        """
+        # Ensure we have bytes to test
+        if not isinstance(ciphertext, (bytes, bytearray)):
+            raise TypeError("ciphertext must be bytes or bytearray")
+
+        # If sample_size is specified, use only a portion of the ciphertext
+        if sample_size and sample_size < len(ciphertext):
+            # Skip the IV (first block_size bytes) when sampling
+            # Assume block_size is 8 (default in the system)
+            block_size = 8
+            start_pos = block_size
+
+            # If ciphertext is too small, use what's available
+            if len(ciphertext) <= start_pos:
+                sequence = ciphertext
+            else:
+                max_sample = len(ciphertext) - start_pos
+                actual_sample = min(sample_size, max_sample)
+                sequence = ciphertext[start_pos:start_pos + actual_sample]
+        else:
+            # Use the entire ciphertext except IV
+            block_size = 8
+            sequence = ciphertext[block_size:] if len(ciphertext) > block_size else ciphertext
+
+        # Run NIST tests
+        results = NISTTestSuite.test_randomness(sequence)
+
+        return {
+            "sequence_size": len(sequence),
+            "test_results": results
+        }

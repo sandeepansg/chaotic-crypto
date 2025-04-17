@@ -2,9 +2,9 @@
 User interface for the Chebyshev cryptosystem.
 Coordinates all user interaction and display components.
 """
-from .input_handler import InputHandler
-from .display_handler import DisplayHandler
-from .nist_io import NISTHandler
+from ui.input_handler import InputHandler
+from ui.display_handler import DisplayHandler
+from ui.nist_io import NISTHandler
 
 
 class UserInterface:
