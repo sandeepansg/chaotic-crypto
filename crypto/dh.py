@@ -1,8 +1,5 @@
-"""
-Diffie-Hellman key exchange using Chebyshev polynomials.
-"""
+"""Diffie-Hellman key exchange using Chebyshev polynomials."""
 import sympy
-import time
 from chaos.chaotic import ChaoticSystem
 from utils.random_gen import SecureRandom
 
@@ -27,7 +24,6 @@ class ChebyshevDH:
         self.param = SecureRandom.randint(2 ** (param_bits - 1), 2 ** param_bits - 1)
 
     def generate_keypair(self, entropy=None):
-        """Generate a private and public key pair."""
         # Generate private key
         private_min = 2 ** (self.private_bits - 1)
         private_max = 2 ** self.private_bits - 1
@@ -44,11 +40,9 @@ class ChebyshevDH:
         return private, public, raw_public
 
     def compute_shared(self, private, other_public):
-        """Compute shared secret using DH principle."""
         return self.cheby.eval(private, other_public)
 
     def simulate_exchange(self, alice_entropy=None, bob_entropy=None):
-        """Simulate complete key exchange between two parties."""
         alice_priv, alice_pub, alice_raw = self.generate_keypair(alice_entropy)
         bob_priv, bob_pub, bob_raw = self.generate_keypair(bob_entropy)
 
@@ -68,7 +62,6 @@ class ChebyshevDH:
         }
 
     def get_system_info(self):
-        """Get system parameters for display purposes."""
         return {
             "mod": self.mod,
             "mod_bits": self.mod.bit_length() if self.mod is not None else 0,
