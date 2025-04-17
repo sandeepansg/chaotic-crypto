@@ -47,12 +47,12 @@ class SpectralTests:
         # The 0.05 is the threshold set by NIST for this test
         T = math.sqrt(-math.log(0.05) * 2) * math.sqrt(n)
 
-        # Count values below threshold
-        N1 = np.sum(modulus < T)  # Observed count below threshold
-        N0 = 0.95 * n / 2  # Expected count below threshold (95% of n/2)
+        # Count values ABOVE threshold (corrected from the original implementation)
+        N1 = np.sum(modulus > T)  # Observed count above threshold
+        N0 = 0.05 * n / 2  # Expected count above threshold (5% of n/2)
 
         # Calculate test statistic
-        # (N1-N0)/sqrt(n*0.95*0.05/4) is the normalized statistic
+        # Normalized statistic based on expected binomial distribution
         d = (N1 - N0) / math.sqrt(n * 0.95 * 0.05 / 4)
 
         # Calculate P-value using complementary error function
@@ -63,7 +63,7 @@ class SpectralTests:
             "p_value": p_value,
             "success": p_value >= significance_level,
             "threshold": T,
-            "expected_below": N0,
-            "observed_below": N1,
+            "expected_above": N0,
+            "observed_above": N1,
             "test_statistic": d
         }
