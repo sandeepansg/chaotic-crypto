@@ -1,6 +1,4 @@
-"""
-Security parameter management for Chebyshev-based cryptosystems.
-"""
+"""Security parameter management for Chebyshev-based cryptosystems."""
 
 
 class SecurityParams:
@@ -31,7 +29,6 @@ class SecurityParams:
     
     @classmethod
     def get_secure_params(cls, private_bits=None):
-        """Calculate appropriate parameter sizes based on private key length."""
         # Use default if not provided
         if private_bits is None:
             private_bits = cls.DEFAULT_PRIVATE_BITS
@@ -39,13 +36,9 @@ class SecurityParams:
         # Enforce limits
         private_bits = max(min(private_bits, cls.MAX_PRIVATE_BITS), cls.MIN_PRIVATE_BITS)
 
-        # Calculate recommended prime size
+        # Calculate recommended sizes
         prime_bits = max(cls.MIN_PRIME_BITS, int(cls.PRIME_TO_PRIVATE_RATIO * private_bits))
-
-        # Calculate recommended public key size
         public_bits = min(int(cls.PUBLIC_TO_PRIVATE_RATIO * private_bits), prime_bits - 1)
-
-        # Parameter size is exactly one bit less than prime size
         param_bits = prime_bits - 1
 
         return {
@@ -57,12 +50,11 @@ class SecurityParams:
         
     @classmethod
     def validate_feistel_params(cls, rounds=None, block_size=None):
-        """Validate and adjust Feistel cipher parameters to ensure security."""
         # Use defaults if not provided
         rounds = rounds if rounds is not None else cls.DEFAULT_FEISTEL_ROUNDS
         block_size = block_size if block_size is not None else cls.DEFAULT_BLOCK_SIZE
         
-        # Enforce minimum and maximum values
+        # Enforce limits
         rounds = max(rounds, cls.MIN_FEISTEL_ROUNDS)
         block_size = max(min(block_size, cls.MAX_BLOCK_SIZE), cls.MIN_BLOCK_SIZE)
         
@@ -77,22 +69,15 @@ class SecurityParams:
         
     @classmethod
     def validate_dh_params(cls, private_bits=None):
-        """Validate and adjust DH parameters to ensure security."""
         # Use default if not provided
         private_bits = private_bits if private_bits is not None else cls.DEFAULT_PRIVATE_BITS
-        
-        # Enforce limits
         private_bits = max(min(private_bits, cls.MAX_PRIVATE_BITS), cls.MIN_PRIVATE_BITS)
-        
         return cls.get_secure_params(private_bits)
     
     @classmethod
     def validate_sbox_params(cls, box_size=None):
-        """Validate and adjust S-box parameters to ensure security."""
         # Use default if not provided
         box_size = box_size if box_size is not None else cls.DEFAULT_SBOX_SIZE
-        
-        # Enforce minimum and maximum values
         box_size = max(min(box_size, cls.MAX_SBOX_SIZE), cls.MIN_SBOX_SIZE)
         
         # Find the nearest power of 2 that's >= box_size
@@ -100,6 +85,4 @@ class SecurityParams:
         while power < box_size:
             power *= 2
             
-        return {
-            "box_size": power
-        }
+        return {"box_size": power}
