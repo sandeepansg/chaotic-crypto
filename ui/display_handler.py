@@ -51,11 +51,10 @@ class DisplayHandler:
 
         # Show keys and results
         for party in ['alice', 'bob']:
-            print(f"{party.title()} private key (hex): 0x{results[f'{party}_private']:X} ({results[f'{party}_private'].bit_length()} bits)")
-            print(f"{party.title()} public key (hex): 0x{results[f'{party}_public']:X} ({results[f'{party}_public'].bit_length()} bits)")
+            print(f"{party.title()} private key (hex): 0x{results[f'{party}_private']:X}")
+            print(f"{party.title()} public key (hex): 0x{results[f'{party}_public']:X}")
         
-        print(f"\nAlice shared secret (hex): 0x{results['alice_shared']:X}")
-        print(f"Bob shared secret (hex): 0x{results['bob_shared']:X}")
+        print(f"\nShared secret (hex): 0x{results['alice_shared']:X}")
         print(f"\nShared secrets match: {'Yes' if results['match'] else 'No'}")
         print(f"Exchange completed in {time_taken:.4f} seconds")
         
@@ -68,7 +67,6 @@ class DisplayHandler:
         print(f"S-box of size {len(sbox)} generated in {time_taken:.4f} seconds")
         print(f"First 10 values: {sbox[:10]}")
         if len(sbox) > 20:
-            print("...")
             print(f"Last 10 values: {sbox[-10:]}")
         
     @staticmethod
@@ -86,5 +84,11 @@ class DisplayHandler:
     @staticmethod
     def show_message(message_type, message):
         """Display a message to the user with appropriate formatting."""
-        type_label = message_type.title()
-        print(f"\n{type_label}: {message}")
+        type_prefix = {
+            "error": "Error",
+            "warning": "Warning",
+            "info": "Info",
+            "success": "Success"
+        }.get(message_type.lower(), message_type.title())
+        
+        print(f"\n{type_prefix}: {message}")
