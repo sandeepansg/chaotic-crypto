@@ -75,7 +75,6 @@ class PatternTests:
             "pi": pi
         }
 
-    # utils/nist_pattern_tests.py - Modified longest_run_ones_test
     @staticmethod
     def longest_run_ones_test(bits: List[int], significance_level: float = 0.01) -> Dict[str, Any]:
         """
@@ -139,16 +138,17 @@ class PatternTests:
                     current_run = 0
 
             # Categorize the longest run based on the categories defined
-            for j, cat in enumerate(categories):
-                if longest <= cat:
+            for j in range(len(categories)):
+                if longest <= categories[j]:
                     v[j] += 1
                     break
-                # If we reach the last category and haven't broken, it belongs in the last category
-                if j == len(categories) - 1:
-                    v[j] += 1
+                # If we've checked all categories except the last and still haven't found a match
+                if j == len(categories) - 2 and longest > categories[j]:
+                    v[j+1] += 1  # Then it belongs in the last category
+                    break
 
         # Calculate chi-squared
-        chi_squared = sum((v[i] - N * pi[i]) ** 2 / (N * pi[i]) for i in range(len(pi)))
+        chi_squared = sum((v[i] - N * pi[i])**2 / (N * pi[i]) for i in range(len(pi)))
 
         # Calculate P-value with correct degrees of freedom
         p_value = spc.gammaincc(K / 2, chi_squared / 2)
