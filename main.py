@@ -3,8 +3,8 @@ Main entry point for the Chebyshev cryptosystem application with hyperchaotic sy
 Uses the simplified APIs from chaos.py and crypto.py.
 """
 import time
-from crypto.crypto import CryptoSystem
-from chaos.chaos import ChaoticSystem
+from crypto.cryptic import CryptoSystem
+from chaos.chaotic import ChaoticSystem
 from ui.interface import UserInterface
 
 
