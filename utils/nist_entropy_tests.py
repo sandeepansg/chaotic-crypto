@@ -29,7 +29,7 @@ class EntropyTests:
         """
         n = len(bits)
 
-        # Block size validation
+        # Block size validation - ensure m < log2(n)-2 per NIST guidelines
         if block_size < 2 or block_size > int(math.log2(n)) - 2:
             return {
                 "name": "Serial Test",
@@ -43,30 +43,35 @@ class EntropyTests:
         def psi_sq_m(m):
             # Create dictionary for pattern counts
             pattern_counts = {}
-            
+
             # Count each pattern (with wrap-around)
             for i in range(n):
+                # Use a more careful pattern construction approach
                 pattern = 0
                 for j in range(m):
-                    pattern = (pattern << 1) | bits[(i + j) % n]
+                    bit_pos = (i + j) % n
+                    pattern = (pattern << 1) | bits[bit_pos]
+
                 # Count this pattern
                 pattern_counts[pattern] = pattern_counts.get(pattern, 0) + 1
-                
+
             # Calculate and return psi-square statistic
-            return 2**m / n * sum(count**2 for count in pattern_counts.values()) - n
+            return (2**m / n) * sum(count**2 for count in pattern_counts.values()) - n
 
         # Calculate psi-square statistics
         psisq_m = psi_sq_m(block_size)
         psisq_m1 = psi_sq_m(block_size - 1)
         psisq_m2 = psi_sq_m(block_size - 2) if block_size >= 3 else 0
-        
-        # Calculate deltas
+
+        # Calculate deltas as per NIST SP 800-22
         delta1 = psisq_m - psisq_m1
         delta2 = psisq_m - 2 * psisq_m1 + psisq_m2
 
         # Calculate P-values with correct degrees of freedom
-        p_value1 = spc.gammaincc(2**(block_size-1)/2, delta1/2)
-        p_value2 = spc.gammaincc(2**(block_size-2)/2, delta2/2) if block_size >= 3 else 1.0
+        # For ∇ψ²ₘ, DOF is 2^(m-1)
+        p_value1 = spc.gammaincc(2**(block_size-2), delta1/2)
+        # For ∇²ψ²ₘ, DOF is 2^(m-2)
+        p_value2 = spc.gammaincc(2**(block_size-3), delta2/2) if block_size >= 3 else 1.0
 
         return {
             "name": "Serial Test",
@@ -79,7 +84,7 @@ class EntropyTests:
         }
 
     @staticmethod
-    def approximate_entropy_test(bits: List[int], block_size: int = 10, 
+    def approximate_entropy_test(bits: List[int], block_size: int = 10,
                                 significance_level: float = 0.01) -> Dict[str, Any]:
         """
         Approximate Entropy Test - compares frequencies of overlapping patterns.
@@ -107,7 +112,7 @@ class EntropyTests:
         def phi(m):
             # Create and initialize C array
             c = [0] * (2**m)
-            
+
             # Count pattern occurrences
             for i in range(n):
                 # Extract pattern with wrap-around
@@ -116,10 +121,10 @@ class EntropyTests:
                     bit = bits[(i + j) % n]
                     pattern = (pattern << 1) | bit
                 c[pattern] += 1
-            
+
             # Convert counts to probabilities
             c = [x/n for x in c]
-            
+
             # Calculate phi
             return sum(p * math.log(p) if p > 0 else 0 for p in c)
 
@@ -133,8 +138,8 @@ class EntropyTests:
         # Calculate chi-squared
         chi_sq = 2.0 * n * (math.log(2) - apen)
 
-        # Calculate P-value with correct degrees of freedom
-        p_value = spc.gammaincc(2**(block_size)/2, chi_sq/2.0)
+        # Calculate P-value with correct degrees of freedom (2^m-1)
+        p_value = spc.gammaincc(2**(block_size-1), chi_sq/2.0)
 
         return {
             "name": "Approximate Entropy Test",
@@ -172,34 +177,44 @@ class EntropyTests:
         # Convert to ±1
         x = [2 * bit - 1 for bit in bits]
 
-        # Helper function to calculate P-value
-        # More stable alternative for calculate_p_value:
-        def calculate_p_value(z, n):
-            z_normalized = z / math.sqrt(n)
-            sum_term = 0.0
+        # Helper function to calculate P-value based on NIST SP 800-22
+        def calculate_p_value(z_max, n):
+            # Normalizing z
+            z = z_max / math.sqrt(n)
 
-            # Use a more stable computation approach with fewer terms
-            for k in range(1, min(int(math.sqrt(n)), 10)):
-                term = math.exp(-2 * (k * z_normalized) ** 2)
-                sum_term += term
-                if term < 1e-10:  # Early stopping when terms become negligible
-                    break
+            # Calculate using the proper formula from NIST SP 800-22
+            sum_a = 0.0
+            sum_b = 0.0
 
-            return 1.0 - 2 * sum_term
+            # Number of terms - use enough for convergence
+            terms = min(500, int((-n * (z - 1) ** 2) / (4 * math.log(10))))
+
+            for k in range(1, terms + 1):
+                # Calculate the first part of the sum
+                sum_a += spc.erfc((4*k-1)/(2*math.sqrt(n)) - z/2) - spc.erfc((4*k-3)/(2*math.sqrt(n)) - z/2)
+
+                # Calculate the second part
+                sum_b += spc.erfc((4*k-3)/(2*math.sqrt(n)) + z/2) - spc.erfc((4*k-1)/(2*math.sqrt(n)) + z/2)
+
+            # Final P-value calculation
+            p_value = 1.0 - sum_a + sum_b
+
+            # Ensure p-value is within [0,1]
+            return max(0.0, min(1.0, p_value))
 
         # Mode 0 (forward)
         S = np.cumsum(x)
         z_max = max(abs(S))
 
         # Calculate P-value for forward
-        p_value_forward = 1.0 - calculate_p_value(z_max, n)
+        p_value_forward = calculate_p_value(z_max, n)
 
         # Mode 1 (backward)
         S_rev = np.cumsum(x[::-1])
         z_max_rev = max(abs(S_rev))
 
         # Calculate P-value for backward
-        p_value_backward = 1.0 - calculate_p_value(z_max_rev, n)
+        p_value_backward = calculate_p_value(z_max_rev, n)
 
         return {
             "name": "Cumulative Sums Test",

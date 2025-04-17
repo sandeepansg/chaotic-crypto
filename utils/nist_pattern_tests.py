@@ -89,7 +89,7 @@ class PatternTests:
         """
         n = len(bits)
 
-        # Determine parameters based on sequence length
+        # Determine parameters based on sequence length as per NIST SP 800-22
         if n < 128:
             return {
                 "name": "Longest Run of Ones Test",
@@ -99,29 +99,29 @@ class PatternTests:
             }
         elif n < 6272:
             M = 8  # Block size
-            K = 3  # Number of degrees of freedom
+            K = 3  # Number of categories - 1 (degrees of freedom)
+            # Boundaries for longest runs categories
+            v_boundaries = [1, 2, 3]  # Means categories: ≤1, 2, 3, ≥4
             # Expected probabilities for each category - NIST values
             pi = [0.2148, 0.3672, 0.2305, 0.1875]
-            # Category boundaries for longest runs in block of size M=8
-            categories = [1, 2, 3, 4]  # ≤1, =2, =3, ≥4
         elif n < 750000:
             M = 128
             K = 5
+            # Corrected boundaries for block size M=128
+            v_boundaries = [4, 5, 6, 7, 8]  # Categories: ≤4, 5, 6, 7, 8, ≥9
             pi = [0.1174, 0.2430, 0.2493, 0.1752, 0.1027, 0.1124]
-            # Corrected categories for block size M=128
-            categories = [1, 2, 3, 4, 6, 7]  # ≤1, =2, =3, =4, 5-6, ≥7
         else:
             M = 10000
             K = 6
-            pi = [0.0882, 0.2092, 0.2483, 0.1933, 0.1208, 0.0675, 0.0727]
             # Categories for block size M=10000
-            categories = [1, 3, 6, 10, 15, 22, 23]  # ≤1, 2-3, 4-6, 7-10, 11-15, 16-22, ≥23
+            v_boundaries = [10, 11, 12, 13, 14, 15]  # ≤10, 11, 12, 13, 14, 15, ≥16
+            pi = [0.0882, 0.2092, 0.2483, 0.1933, 0.1208, 0.0675, 0.0727]
 
         # Number of blocks
         N = n // M
 
-        # Initialize frequency counts
-        v = [0] * len(pi)
+        # Initialize frequency counts for each category
+        v = [0] * (K + 1)
 
         # Find longest run in each block
         for i in range(N):
@@ -137,20 +137,16 @@ class PatternTests:
                 else:
                     current_run = 0
 
-            # Categorize the longest run based on the categories defined
-            for j in range(len(categories)):
-                if longest <= categories[j]:
-                    v[j] += 1
-                    break
-                # If we've checked all categories except the last and still haven't found a match
-                if j == len(categories) - 2 and longest > categories[j]:
-                    v[j+1] += 1  # Then it belongs in the last category
-                    break
+            # Categorize the longest run
+            category = 0
+            while category < K and longest > v_boundaries[category]:
+                category += 1
+            v[category] += 1
 
         # Calculate chi-squared
-        chi_squared = sum((v[i] - N * pi[i])**2 / (N * pi[i]) for i in range(len(pi)))
+        chi_squared = sum((v[i] - N * pi[i])**2 / (N * pi[i]) for i in range(K + 1))
 
-        # Calculate P-value with correct degrees of freedom
+        # Calculate P-value with K degrees of freedom
         p_value = spc.gammaincc(K / 2, chi_squared / 2)
 
         return {
@@ -161,5 +157,6 @@ class PatternTests:
             "observed_frequencies": v,
             "expected_frequencies": [N * prob for prob in pi],
             "block_size": M,
-            "num_blocks": N
+            "num_blocks": N,
+            "category_boundaries": v_boundaries
         }

@@ -40,19 +40,22 @@ class SpectralTests:
 
         # Apply DFT
         S = np.fft.fft(x)
-        modulus = np.abs(S[1:n//2 + 1])  # Skip DC component (S[0])
+        # Get modulus of the first half of elements (excluding DC component)
+        modulus = np.abs(S[1:n//2])
 
-        # Calculate threshold - corrected formula
-        T = math.sqrt(math.log(1/0.05) * n)
+        # Calculate threshold per NIST SP 800-22
+        # The 0.05 is the threshold set by NIST for this test
+        T = math.sqrt(-math.log(0.05) * 2) * math.sqrt(n)
 
         # Count values below threshold
-        N0 = 0.95 * n / 2  # Expected count
-        N1 = sum(1 for m in modulus if m < T)  # Observed count
+        N1 = np.sum(modulus < T)  # Observed count below threshold
+        N0 = 0.95 * n / 2  # Expected count below threshold (95% of n/2)
 
         # Calculate test statistic
+        # (N1-N0)/sqrt(n*0.95*0.05/4) is the normalized statistic
         d = (N1 - N0) / math.sqrt(n * 0.95 * 0.05 / 4)
 
-        # Calculate P-value
+        # Calculate P-value using complementary error function
         p_value = math.erfc(abs(d) / math.sqrt(2))
 
         return {
@@ -61,5 +64,6 @@ class SpectralTests:
             "success": p_value >= significance_level,
             "threshold": T,
             "expected_below": N0,
-            "observed_below": N1
+            "observed_below": N1,
+            "test_statistic": d
         }
