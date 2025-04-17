@@ -1,6 +1,4 @@
-"""
-S-box generation using the hyperchaotic system.
-"""
+"""S-box generation using the hyperchaotic system."""
 import hashlib
 from chaos.chaotic import ChaoticSystem
 from utils.random_gen import SecureRandom
@@ -10,12 +8,10 @@ class HyperchaosBoxGenerator:
     """Generates S-boxes from shared secrets using hyperchaotic system."""
 
     def __init__(self, shared_secret, box_size=256):
-        """Initialize with a shared secret to generate S-boxes."""
         self.box_size = box_size
         self.shared_secret = shared_secret
         
     def generate(self):
-        """Generate an S-box using the hyperchaotic system with shared secret as seed."""
         # Convert shared secret to bytes
         secret_bytes = self.shared_secret.to_bytes(
             (self.shared_secret.bit_length() + 7) // 8, 
@@ -61,7 +57,6 @@ class HyperchaosBoxGenerator:
         return sbox
         
     def generate_with_avalanche(self):
-        """Generate an S-box with good avalanche characteristics."""
         # Generate a base S-box
         base_sbox = self.generate()
         
