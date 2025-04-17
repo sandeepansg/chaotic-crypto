@@ -67,3 +67,9 @@ class UserInterface:
 
     def show_warning(self, warning_message):
         self.display_handler.show_message("warning", warning_message)
+
+    def show_message(self, msg_type, message):
+        self.display_handler.show_message(msg_type, message)
+
+    def get_nist_test_options(self, ciphertext_available=False):
+        return self.nist_handler.get_nist_test_options(ciphertext_available)

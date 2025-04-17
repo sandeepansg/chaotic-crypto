@@ -81,7 +81,7 @@ def run_demo():
         nist_options = ui.get_nist_test_options(ciphertext_available=True)
         if nist_options:
             # Import NIST analyzer only when needed
-            from utils.nist_anals import NISTAnalyzer
+            from utils.nist_analyzer import NISTAnalyzer
 
             start_time = time.time()
 

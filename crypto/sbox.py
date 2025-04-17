@@ -66,3 +66,24 @@ class HyperchaosBoxGenerator:
             base_sbox[i], base_sbox[j] = base_sbox[j], base_sbox[i]
         
         return base_sbox
+
+    def generate_test_sequence(self, sequence_size, initial_state=None):
+        """
+        Generate a test sequence using the hyperchaotic system.
+
+        Args:
+            sequence_size: Size of the test sequence to generate
+            initial_state: Optional initial state for the system
+
+        Returns:
+            bytes: Generated test sequence
+        """
+        from chaos.chaotic import ChaoticSystem
+
+        # Use shared secret to seed the initial state if not provided
+        if not initial_state:
+            from utils.random_gen import SecureRandom
+            initial_state = SecureRandom.generate_initial_state(str(self.shared_secret))
+
+        # Generate bytes directly from the chaotic system
+        return ChaoticSystem.generate_bytes(initial_state, sequence_size)
