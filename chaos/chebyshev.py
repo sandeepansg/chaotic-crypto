@@ -1,6 +1,4 @@
-"""
-Chebyshev polynomial implementation with modular arithmetic.
-"""
+"""Chebyshev polynomial implementation with modular arithmetic."""
 import numpy as np
 from functools import lru_cache
 
