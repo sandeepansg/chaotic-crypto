@@ -128,6 +128,30 @@ class NISTHandler:
             elif "p_value1" in result and "p_value2" in result:
                 print(f"  P-value1: {result['p_value1']:.6f}")
                 print(f"  P-value2: {result['p_value2']:.6f}")
+            elif "p_value_forward" in result and "p_value_backward" in result:
+                print(f"  P-value (forward): {result['p_value_forward']:.6f}")
+                print(f"  P-value (backward): {result['p_value_backward']:.6f}")
+
+    @staticmethod
+    def print_test_details(test_info):
+        """Print detailed information about a specific test result."""
+        print("\nDetailed Test Information:")
+
+        # Filter out common fields and error messages
+        skip_keys = {"name", "p_value", "success", "error"}
+
+        for key, value in test_info.items():
+            if key not in skip_keys:
+                # Format the key for readability
+                formatted_key = key.replace("_", " ").title()
+
+                # Format values based on type
+                if isinstance(value, float):
+                    print(f"  {formatted_key}: {value:.6f}")
+                elif isinstance(value, list) and len(value) > 10:
+                    print(f"  {formatted_key}: [List with {len(value)} elements]")
+                else:
+                    print(f"  {formatted_key}: {value}")
 
     @staticmethod
     def confirm_action(prompt, default=True):
