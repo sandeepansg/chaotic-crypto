@@ -1,6 +1,4 @@
-"""
-Block cipher implementation using the hyperchaotic system.
-"""
+"""Block cipher implementation using the hyperchaotic system."""
 import os
 import hashlib
 from chaos.chaotic import ChaoticSystem
@@ -10,7 +8,6 @@ class HyperchaosBlockCipher:
     """Block cipher implementation using the hyperchaotic system."""
 
     def __init__(self, sbox, rounds=16, block_size=8):
-        """Initialize the block cipher."""
         self.rounds = rounds
         self.block_size = block_size
         self.half_block_size = self.block_size // 2
@@ -30,12 +27,10 @@ class HyperchaosBlockCipher:
         """Remove PKCS#7 padding from data."""
         if not data:
             return b''
-            
         padding_len = data[-1]
         return data[:-padding_len]
     
     def _generate_keys(self, key):
-        """Generate round keys from the main key using the hyperchaotic system."""
         # Hash the provided key
         key_hash = hashlib.sha256(key).digest()
         
@@ -50,18 +45,15 @@ class HyperchaosBlockCipher:
         while len(initial_state) < 5:
             initial_state.append(0.1)
         
-        # Generate block-sized round keys for each round
-        round_keys = ChaoticSystem.generate_block(
+        # Generate block-sized round keys
+        return ChaoticSystem.generate_block(
             initial_state, 
             self.half_block_size, 
             num_blocks=self.rounds,
             skip=200
         )
-        
-        return round_keys
     
     def _hyperchaotic_round(self, half_block, round_key, round_num):
-        """Apply hyperchaotic transformation for one round."""
         result = bytearray(len(half_block))
         
         # First XOR with round key
@@ -92,7 +84,6 @@ class HyperchaosBlockCipher:
         return bytes(mixed)
     
     def _process_block(self, block, round_keys, encrypt=True):
-        """Process a single block through the cipher."""
         # Split the block into left and right halves
         half_size = len(block) // 2
         L = bytearray(block[:half_size])
@@ -118,7 +109,6 @@ class HyperchaosBlockCipher:
         return bytes(R) + bytes(L)
     
     def encrypt(self, plaintext, key=None):
-        """Encrypt plaintext using CBC mode with IV."""
         # Generate a random IV
         iv = os.urandom(self.block_size)
         
@@ -158,7 +148,6 @@ class HyperchaosBlockCipher:
         return iv + b''.join(ciphertext_blocks)
     
     def decrypt(self, ciphertext, key=None):
-        """Decrypt ciphertext using CBC mode."""
         # Extract IV
         iv = ciphertext[:self.block_size]
         ciphertext = ciphertext[self.block_size:]
@@ -200,7 +189,6 @@ class HyperchaosBlockCipher:
         return self._unpad_data(b''.join(plaintext_blocks))
         
     def get_cipher_info(self):
-        """Get cipher parameters for display purposes."""
         return {
             "rounds": self.rounds,
             "block_size": self.block_size,
@@ -208,12 +196,6 @@ class HyperchaosBlockCipher:
         }
         
     def generate_test_sequence(self, sequence_size, entropy=None):
-        """Generate a test sequence for NIST statistical tests."""
-        # Create initial state from entropy
         from utils.random_gen import SecureRandom
         initial_state = SecureRandom.generate_initial_state(entropy)
-        
-        # Generate byte sequence
-        bytes_sequence = ChaoticSystem.generate_bytes(initial_state, sequence_size)
-        
-        return bytes_sequence
+        return ChaoticSystem.generate_bytes(initial_state, sequence_size)
