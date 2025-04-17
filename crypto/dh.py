@@ -2,6 +2,7 @@
 Diffie-Hellman key exchange using Chebyshev polynomials.
 """
 import sympy
+import time
 from chaos.chaotic import ChaoticSystem
 from utils.random_gen import SecureRandom
 

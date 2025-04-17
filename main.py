@@ -1,10 +1,10 @@
 """
 Main entry point for the Chebyshev cryptosystem application with hyperchaotic system.
-Uses the simplified APIs from chaotic.py and crypto.py.
+Uses the simplified APIs from chaos.py and crypto.py.
 """
 import time
-from crypto.cryptic import CryptoSystem
-from chaos.chaotic import ChaoticSystem
+from crypto.crypto import CryptoSystem
+from chaos.chaos import ChaoticSystem
 from ui.interface import UserInterface
 
 
