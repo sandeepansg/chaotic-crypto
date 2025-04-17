@@ -57,7 +57,7 @@ class InputHandler:
         print("\nPrivate Key Configuration")
         print("-" * 30)
         return InputHandler.get_int_input(
-            f"Private key length options: min={SecurityParams.MIN_PRIVATE_BITS}, max={SecurityParams.MAX_PRIVATE_BITS}, default={SecurityParams.DEFAULT_PRIVATE_BITS}",
+            "Private key length options:",
             SecurityParams.MIN_PRIVATE_BITS, 
             SecurityParams.MAX_PRIVATE_BITS,
             SecurityParams.DEFAULT_PRIVATE_BITS
@@ -71,15 +71,15 @@ class InputHandler:
 
         # Get rounds
         rounds = InputHandler.get_int_input(
-            f"Feistel rounds options: min={SecurityParams.MIN_FEISTEL_ROUNDS}, default={SecurityParams.DEFAULT_FEISTEL_ROUNDS}",
+            "Feistel rounds options:",
             SecurityParams.MIN_FEISTEL_ROUNDS,
-            float('inf'),  # No upper limit
+            100,  # Reasonable upper limit
             SecurityParams.DEFAULT_FEISTEL_ROUNDS
         )
 
         # Get block size
         block_size = InputHandler.get_int_input(
-            f"Block size options: min={SecurityParams.MIN_BLOCK_SIZE}, max={SecurityParams.MAX_BLOCK_SIZE}, default={SecurityParams.DEFAULT_BLOCK_SIZE} bytes",
+            "Block size options (bytes):",
             SecurityParams.MIN_BLOCK_SIZE,
             SecurityParams.MAX_BLOCK_SIZE,
             SecurityParams.DEFAULT_BLOCK_SIZE,
@@ -95,7 +95,7 @@ class InputHandler:
         print("-" * 30)
         
         return InputHandler.get_power_of_two(
-            f"S-box size options: min={SecurityParams.MIN_SBOX_SIZE}, max={SecurityParams.MAX_SBOX_SIZE}, default={SecurityParams.DEFAULT_SBOX_SIZE}",
+            "S-box size options:",
             SecurityParams.MIN_SBOX_SIZE,
             SecurityParams.MAX_SBOX_SIZE,
             SecurityParams.DEFAULT_SBOX_SIZE
@@ -107,7 +107,6 @@ class InputHandler:
         print("\nEntropy Configuration")
         print("-" * 30)
         print("Enter text to use as additional entropy for key generation.")
-        print("This helps make your keys more unique and secure.")
         return input("Enter text for additional entropy (optional): ")
 
     @staticmethod
@@ -122,18 +121,15 @@ class InputHandler:
     @staticmethod
     def confirm_action(prompt, default=True):
         """Ask user to confirm an action."""
-        yes_choices = ['y', 'yes', 'true', '1']
-        no_choices = ['n', 'no', 'false', '0']
-
         default_str = "Y/n" if default else "y/N"
         response = input(f"{prompt} [{default_str}]: ").strip().lower()
 
         if not response:
             return default
 
-        if response in yes_choices:
+        if response in ['y', 'yes', 'true', '1']:
             return True
-        if response in no_choices:
+        if response in ['n', 'no', 'false', '0']:
             return False
 
         # Invalid response, return default
