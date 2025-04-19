@@ -34,18 +34,27 @@ class ComplexityTests:
         L = 0
         m = -1
         
+        # Optimized implementation using NumPy operations when possible
         for N in range(n):
             # Compute discrepancy
             d = sequence[N]
-            for i in range(1, L + 1):
-                d = (d + c[i] * sequence[N - i]) % 2
+            if L > 0:
+                # Use vectorized operation for faster computation
+                indices = np.arange(1, L + 1)
+                products = c[indices] * np.array([sequence[N - i] for i in indices], dtype=int)
+                d = (d + np.sum(products)) % 2
             
             if d == 1:  # Need to update LFSR
                 t = c.copy()
                 
                 # Update connection polynomial
+                if N - m + n > len(c):
+                    c = np.pad(c, (0, N - m + n - len(c)), 'constant')
+                    b = np.pad(b, (0, N - m + n - len(b)), 'constant')
+                
                 for j in range(n - N + m):
-                    c[N - m + j] = (c[N - m + j] + b[j]) % 2
+                    if j < len(b):
+                        c[N - m + j] = (c[N - m + j] + b[j]) % 2
                 
                 if L <= N / 2:
                     L = N + 1 - L
@@ -77,7 +86,7 @@ class ComplexityTests:
                 "name": "Linear Complexity Test",
                 "p_value": 0.0,
                 "success": False,
-                "error": f"Block size should be between 500 and 5000"
+                "error": f"Block size should be between 500 and 5000 (got {block_size})"
             }
             
         # Number of blocks
@@ -88,14 +97,11 @@ class ComplexityTests:
                 "name": "Linear Complexity Test",
                 "p_value": 0.0,
                 "success": False,
-                "error": f"Insufficient blocks: need at least 4, got {N}"
+                "error": f"Insufficient blocks: need at least 4, got {N} (sequence length: {n})"
             }
             
         # Expected mean for block of size M
-        mu = 0.5 * block_size + (1/36) * (9 + (-1)**(block_size + 1)) - \
-             (block_size/3 + 2/9) / (2**block_size)
-        
-        # For large M, use approximation: mu = 0.5 * M + 1/36 - block_size / (3 * 2^block_size)
+        # For large block_size, use simplified approximation
         mu = 0.5 * block_size + 1/36
         
         # Initialize frequency counts for each K value
@@ -103,12 +109,14 @@ class ComplexityTests:
         v = np.zeros(K + 1)
         
         # Process each block
+        complexities = []  # Store for detailed reporting
         for i in range(N):
             # Extract current block
             block = bits[i * block_size:(i + 1) * block_size]
             
             # Compute linear complexity
             complexity = ComplexityTests._berlekamp_massey(block)
+            complexities.append(complexity)
             
             # Calculate Ti value (mean-adjusted complexity)
             T = (-1)**block_size * (complexity - mu) + 2/9
@@ -141,6 +149,11 @@ class ComplexityTests:
         # Calculate P-value with K degrees of freedom
         p_value = spc.gammaincc(K/2, chi_squared/2)
         
+        # Compute statistics for detailed report
+        avg_complexity = np.mean(complexities)
+        min_complexity = np.min(complexities)
+        max_complexity = np.max(complexities)
+        
         return {
             "name": "Linear Complexity Test",
             "p_value": p_value,
@@ -149,7 +162,10 @@ class ComplexityTests:
             "block_size": block_size,
             "num_blocks": N,
             "expected_mean": mu,
-            "observed_frequencies": v.tolist()
+            "observed_frequencies": v.tolist(),
+            "avg_complexity": avg_complexity,
+            "min_complexity": min_complexity,
+            "max_complexity": max_complexity
         }
         
     @staticmethod
@@ -173,12 +189,10 @@ class ComplexityTests:
                 "name": "Universal Statistical Test",
                 "p_value": 0.0,
                 "success": False,
-                "error": f"Block size L must be between 2 and 16"
+                "error": f"Block size L must be between 2 and 16 (got {block_size})"
             }
         
         # Initialize parameters based on block size
-        # K is the number of blocks in initialization segment
-        # Q is the number of blocks in test segment
         # Expected values (theoretical) for specified block sizes
         expected_value = {
             1: 0.7326495, 2: 1.5374383, 3: 2.4016068, 4: 3.3112247, 5: 4.2534266,
@@ -207,7 +221,7 @@ class ComplexityTests:
                 "name": "Universal Statistical Test",
                 "p_value": 0.0,
                 "success": False,
-                "error": f"Insufficient data: need at least {total_blocks_needed * block_size} bits"
+                "error": f"Insufficient data: need at least {total_blocks_needed * block_size} bits, got {n}"
             }
         
         # Initialize dictionary for last occurrence of each pattern
@@ -215,11 +229,14 @@ class ComplexityTests:
         
         # Variables for calculating test statistic
         sum_value = 0.0
+        sum_squared = 0.0  # For variance calculation
+        all_distances = []  # Store distances for detailed reporting
         
         # First K blocks are for initialization
         for i in range(K):
             # Extract pattern from block
             block_start = i * block_size
+            # Use bit shifting for pattern extraction (more efficient)
             pattern = 0
             for j in range(block_size):
                 pattern = (pattern << 1) | bits[block_start + j]
@@ -238,9 +255,12 @@ class ComplexityTests:
             # Calculate distance to last occurrence
             distance = i + 1 - pattern_dict.get(pattern, 0)
             
-            # Add log2 of the distance to sum
+            # Add log2 of the distance to sum if pattern has occurred before
             if distance > 0:
-                sum_value += math.log2(distance)
+                log_dist = math.log2(distance)
+                sum_value += log_dist
+                sum_squared += log_dist ** 2
+                all_distances.append(distance)
             
             # Update last occurrence
             pattern_dict[pattern] = i + 1
@@ -248,16 +268,26 @@ class ComplexityTests:
         # Calculate test statistic
         fn_value = sum_value / Q
         
+        # Calculate observed variance
+        observed_variance = sum_squared/Q - (fn_value**2)
+        
         # Standardize the test statistic
         sigma = math.sqrt(variance[block_size] / Q) * 0.7  # Conservative factor
         
         # Calculate the standardized test statistic
-        c = 0.7  # Correction factor for better approximation
+        c = 0.7  # Correction factor for improved approximation
         expected = expected_value[block_size]
         standardized_value = c * abs(fn_value - expected) / sigma
         
         # Calculate P-value
         p_value = math.erfc(standardized_value / math.sqrt(2))
+        
+        # Additional statistics for detailed reporting
+        distance_stats = {
+            "min": min(all_distances) if all_distances else 0,
+            "max": max(all_distances) if all_distances else 0,
+            "mean": sum(all_distances)/len(all_distances) if all_distances else 0
+        }
         
         return {
             "name": "Universal Statistical Test",
@@ -268,5 +298,8 @@ class ComplexityTests:
             "block_size": block_size,
             "init_blocks": K,
             "test_blocks": Q,
-            "standardized_value": standardized_value
+            "standardized_value": standardized_value,
+            "observed_variance": observed_variance,
+            "expected_variance": variance[block_size],
+            "distance_stats": distance_stats
         }
