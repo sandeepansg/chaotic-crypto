@@ -3,6 +3,7 @@ Main entry point for the Chebyshev cryptosystem application with hyperchaotic sy
 Uses the simplified APIs from chaos.chaotic and crypto.cryptic modules.
 """
 import time
+from typing import Dict, Any
 from crypto.cryptic import CryptoSystem
 from ui.interface import UserInterface
 
@@ -84,30 +85,129 @@ def run_demo():
             from utils.nist_analyzer import NISTAnalyzer
 
             start_time = time.time()
+            results = None
 
             if nist_options.get("test_ciphertext", False):
                 # Test the ciphertext data
+                ui.show_message("info", f"Testing ciphertext with NIST statistical tests...")
+                
                 results = NISTAnalyzer.analyze_ciphertext(
                     ciphertext,
-                    sample_size=nist_options.get("sample_size")
+                    sample_size=nist_options.get("sample_size"),
+                    run_all_tests=nist_options.get("run_all_tests", False)
                 )
                 ui.show_message("info", f"Testing {results['sequence_size']} bytes of ciphertext...")
+            
+            elif nist_options.get("test_system", False):
+                # Test the hyperchaotic system directly
+                ui.show_message("info", f"Testing hyperchaotic system with NIST statistical tests...")
+                
+                results = NISTAnalyzer.analyze_system(
+                    sequence_size=nist_options.get("sequence_size", 10000),
+                    skip=nist_options.get("skip", 1000),
+                    entropy=entropy,
+                    run_all_tests=nist_options.get("run_all_tests", False)
+                )
+                ui.show_message("info", f"Testing {results['sequence_size']} bytes from hyperchaotic system...")
+            
             else:
                 # Generate test sequence using cipher
-                test_data = cipher.generate_test_sequence(nist_options["sequence_size"], entropy)
+                ui.show_message("info", f"Generating random sequence using cipher...")
+                
+                test_data = cipher.generate_test_sequence(
+                    nist_options.get("sequence_size", 10000), 
+                    entropy
+                )
 
                 # Analyze the sequence
-                results = NISTAnalyzer.analyze_sequence(test_data)
-                ui.show_message("info", f"Testing {results['sequence_size']} bytes of fresh random data...")
+                results = NISTAnalyzer.analyze_sequence(
+                    test_data,
+                    run_all_tests=nist_options.get("run_all_tests", False)
+                )
+                ui.show_message("info", f"Testing {results['sequence_size']} bytes of cipher-generated random data...")
 
-            # Display results
-            analysis_time = time.time() - start_time
-            ui.show_nist_test_results(results, analysis_time)
+            # Run specific tests if requested
+            if nist_options.get("specific_tests", None):
+                ui.show_message("info", f"Running specific NIST tests...")
+                
+                # Get the binary data from the appropriate source
+                if results:
+                    if "test_data" in locals():
+                        binary_data = test_data
+                    elif nist_options.get("test_ciphertext", False):
+                        binary_data = ciphertext
+                    else:
+                        # Create a new test sequence
+                        binary_data = cipher.generate_test_sequence(
+                            nist_options.get("sequence_size", 10000), 
+                            entropy
+                        )
+                    
+                    # Run specific tests
+                    specific_results = NISTAnalyzer.analyze_with_specific_tests(
+                        binary_data,
+                        tests=nist_options["specific_tests"],
+                        significance_level=nist_options.get("significance_level", 0.01)
+                    )
+                    
+                    # Display detailed results for specific tests
+                    ui.show_detailed_nist_results(specific_results)
+                    
+                    # Update main results with specific test results if needed
+                    if not results:
+                        results = specific_results
+
+            # Display overall results
+            if results:
+                analysis_time = time.time() - start_time
+                ui.show_nist_test_results(results, analysis_time)
+                
+                # Offer to save results if available
+                if ui.confirm_save_results():
+                    save_nist_results(results, ui)
 
     except KeyboardInterrupt:
         ui.show_message("info", "\nDemo aborted by user.")
     except Exception as e:
         ui.show_error(str(e))
+
+
+def save_nist_results(results: Dict[str, Any], ui: UserInterface):
+    """Save NIST test results to a file."""
+    try:
+        import json
+        from datetime import datetime
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"nist_results_{timestamp}.json"
+        
+        # Convert numpy values to native Python types for JSON serialization
+        def convert_numpy(obj):
+            if isinstance(obj, (dict, list)):
+                return obj
+            try:
+                import numpy as np
+                if isinstance(obj, np.integer):
+                    return int(obj)
+                elif isinstance(obj, np.floating):
+                    return float(obj)
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+            except ImportError:
+                pass
+            return obj
+        
+        # Clean up results for JSON serialization
+        clean_results = json.loads(json.dumps(results, default=convert_numpy))
+        
+        # Write to file
+        with open(filename, 'w') as f:
+            json.dump(clean_results, f, indent=2)
+        
+        ui.show_message("info", f"Results saved to {filename}")
+    except Exception as e:
+        ui.show_error(f"Failed to save results: {str(e)}")
 
 
 if __name__ == "__main__":
